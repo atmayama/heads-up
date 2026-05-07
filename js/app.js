@@ -1,7 +1,8 @@
 // js-yaml loaded via local file before this script
 
 const TIMER_DURATION = 60;
-const CIRCUMFERENCE = 2 * Math.PI * 28; // r=28 matches SVG
+const CIRCUMFERENCE = 2 * Math.PI * 28;
+const TILT_THRESHOLD = 26; // degrees from calibrated baseline
 
 // ── State ──────────────────────────────────────────────────────────────────
 let categories = [];
@@ -18,8 +19,10 @@ let tiltCooldown = false;
 let countdownInterval = null;
 
 // Tilt state
-let lastTilt = null;
-let tiltBaseline = null; // calibrated baseline { beta, gamma }
+let lastTiltValue = null;
+let tiltBaseline = null;
+let calibrationBuffer = [];
+let tiltListening = false;
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const screens = {
@@ -58,37 +61,32 @@ function showScreen(name) {
 
 // ── Rotate overlay ─────────────────────────────────────────────────────────
 const isTouchDevice = () => navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
-const isPortrait = () => window.innerHeight > window.innerWidth;
+const isPortrait    = () => window.innerHeight > window.innerWidth;
 
-// Game screens that require landscape
 const LANDSCAPE_SCREENS = ['countdown', 'game'];
 
 function updateRotateOverlay() {
-  const activeScreen = Object.keys(screens).find(k => screens[k].classList.contains('active'));
-  const needsLandscape = LANDSCAPE_SCREENS.includes(activeScreen);
-  const showOverlay = isTouchDevice() && needsLandscape && isPortrait();
-  el.rotateOverlay.classList.toggle('visible', showOverlay);
+  const active = Object.keys(screens).find(k => screens[k].classList.contains('active'));
+  const show = isTouchDevice() && LANDSCAPE_SCREENS.includes(active) && isPortrait();
+  el.rotateOverlay.classList.toggle('visible', show);
 }
 
 window.addEventListener('resize', updateRotateOverlay);
-window.addEventListener('orientationchange', () => {
-  setTimeout(updateRotateOverlay, 150); // wait for dimensions to update
-});
+window.addEventListener('orientationchange', () => setTimeout(updateRotateOverlay, 150));
 
 // ── Load categories ────────────────────────────────────────────────────────
 async function loadCategories() {
   try {
-    const indexRes = await fetch('categories/index.json');
-    const files = await indexRes.json();
-    categories = await Promise.all(files.map(async (file) => {
-      const res = await fetch(`categories/${file}`);
-      const text = await res.text();
+    const files = await fetch('categories/index.json').then(r => r.json());
+    categories = await Promise.all(files.map(async f => {
+      const text = await fetch(`categories/${f}`).then(r => r.text());
       return jsyaml.load(text);
     }));
     renderCategories();
   } catch (err) {
     console.error('Failed to load categories:', err);
-    el.categoriesGrid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;text-align:center">Failed to load categories.</p>';
+    el.categoriesGrid.innerHTML =
+      '<p style="color:var(--muted);grid-column:1/-1;text-align:center">Failed to load categories.</p>';
   }
 }
 
@@ -104,6 +102,10 @@ function renderCategories() {
 
 // ── Category selection ─────────────────────────────────────────────────────
 function selectCategory(index) {
+  // iOS 13+: requestPermission MUST be called directly inside a user-gesture
+  // handler. Do it here — NOT 3 seconds later after the countdown.
+  requestOrientationPermission();
+
   currentCategory = categories[index];
   deck = shuffle([...currentCategory.words]);
   deckIndex = 0;
@@ -113,6 +115,20 @@ function selectCategory(index) {
   startCountdown();
 }
 
+// ── Orientation permission ─────────────────────────────────────────────────
+function requestOrientationPermission() {
+  if (typeof DeviceOrientationEvent === 'undefined') return;
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+
+    DeviceOrientationEvent.requestPermission()
+      .then(state => { if (state === 'granted') startCalibration(); })
+      .catch(() => {});
+  } else {
+    // Android / non-gated browsers — start immediately
+    startCalibration();
+  }
+}
+
 // ── Countdown ─────────────────────────────────────────────────────────────
 function startCountdown() {
   showScreen('countdown');
@@ -120,7 +136,6 @@ function startCountdown() {
   document.getElementById('countdown-screen').style.background =
     `linear-gradient(135deg, ${currentCategory.color}cc, ${currentCategory.color}55)`;
 
-  // Try to lock orientation to landscape for gameplay
   lockLandscape();
 
   let count = 3;
@@ -140,9 +155,7 @@ function startCountdown() {
 // ── Orientation lock ───────────────────────────────────────────────────────
 function lockLandscape() {
   if (screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock('landscape').catch(() => {
-      // Lock not supported or denied — overlay handles this
-    });
+    screen.orientation.lock('landscape').catch(() => {});
   }
 }
 
@@ -157,8 +170,7 @@ function startGame() {
   showScreen('game');
   timeLeft = TIMER_DURATION;
   gameActive = true;
-  tiltBaseline = null;
-  lastTilt = null;
+  lastTiltValue = null;
 
   el.gameBg.style.background =
     `linear-gradient(160deg, ${currentCategory.color}dd 0%, ${currentCategory.color}88 100%)`;
@@ -168,7 +180,10 @@ function startGame() {
   updateTimerUI();
   showWord();
   startTimer();
-  setupTilt();
+
+  // If calibration wasn't started yet (e.g. Android where permission is
+  // auto-granted and startCalibration wasn't called during selectCategory)
+  if (!tiltListening) startCalibration();
 }
 
 function showWord() {
@@ -177,7 +192,6 @@ function showWord() {
     deckIndex = 0;
   }
   el.currentWord.textContent = deck[deckIndex];
-  // Re-trigger animation
   el.currentWord.style.animation = 'none';
   void el.currentWord.offsetWidth;
   el.currentWord.style.animation = '';
@@ -244,91 +258,77 @@ function updateTimerUI() {
 }
 
 // ── Tilt detection ─────────────────────────────────────────────────────────
-function setupTilt() {
-  if (typeof DeviceOrientationEvent === 'undefined') return;
+// AXIS SELECTION
+// Landscape (phone held flat on forehead): the "nod" rotates around the
+// phone's long (Y) axis → gamma changes.
+//   • gamma negative delta → far end tipped down  → CORRECT
+//   • gamma positive delta → far end tipped up    → PASS
+//
+// Portrait (phone held upright): the "nod" rotates around the X axis → beta.
+//   • beta negative delta → top tips forward      → CORRECT
+//   • beta positive delta → top tips backward     → PASS
 
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    // iOS 13+ — request permission (must be from a user gesture; handled at game start click)
-    DeviceOrientationEvent.requestPermission()
-      .then(state => { if (state === 'granted') startTiltListening(); })
-      .catch(() => {});
-  } else {
-    startTiltListening();
-  }
-}
-
-// Calibration: collect first few readings to establish baseline
-let calibrationBuffer = [];
-const CALIB_SAMPLES = 8;
-
-function startTiltListening() {
+function startCalibration() {
+  if (tiltListening) return; // already running
+  tiltListening = true;
   calibrationBuffer = [];
-  window.addEventListener('deviceorientation', calibrateThen, { passive: true });
+  window.addEventListener('deviceorientation', onCalibrate, { passive: true });
+
+  // Safety: if 4 s pass without enough samples, lock in whatever we have
+  setTimeout(() => {
+    if (!tiltBaseline && calibrationBuffer.length > 0) {
+      finaliseBaseline();
+    }
+  }, 4000);
 }
 
-function calibrateThen(e) {
+function onCalibrate(e) {
   if (e.beta === null || e.gamma === null) return;
   calibrationBuffer.push({ beta: e.beta, gamma: e.gamma });
+  if (calibrationBuffer.length >= 10) finaliseBaseline();
+}
 
-  if (calibrationBuffer.length >= CALIB_SAMPLES) {
-    // Average out the baseline
-    const avgBeta  = calibrationBuffer.reduce((s, r) => s + r.beta,  0) / CALIB_SAMPLES;
-    const avgGamma = calibrationBuffer.reduce((s, r) => s + r.gamma, 0) / CALIB_SAMPLES;
-    tiltBaseline = { beta: avgBeta, gamma: avgGamma };
-
-    window.removeEventListener('deviceorientation', calibrateThen);
-    window.addEventListener('deviceorientation', handleTilt, { passive: true });
+function finaliseBaseline() {
+  const n = calibrationBuffer.length;
+  if (n === 0) { tiltBaseline = { beta: 0, gamma: 0 }; }
+  else {
+    tiltBaseline = {
+      beta:  calibrationBuffer.reduce((s, r) => s + r.beta,  0) / n,
+      gamma: calibrationBuffer.reduce((s, r) => s + r.gamma, 0) / n,
+    };
   }
+  window.removeEventListener('deviceorientation', onCalibrate);
+  window.addEventListener('deviceorientation', onTilt, { passive: true });
 }
 
-function getOrientationType() {
-  if (screen.orientation) return screen.orientation.type; // e.g. 'landscape-primary'
-  // Fallback using deprecated window.orientation
-  const wo = window.orientation;
-  if (wo === 90)  return 'landscape-primary';
-  if (wo === -90) return 'landscape-secondary';
-  if (wo === 180) return 'portrait-secondary';
-  return 'portrait-primary';
-}
-
-function handleTilt(e) {
+function onTilt(e) {
   if (!gameActive || !tiltBaseline) return;
 
-  const beta  = e.beta  || 0;
-  const gamma = e.gamma || 0;
-  const type  = getOrientationType();
-  const landscape = type.includes('landscape');
+  const inLandscape = window.innerWidth > window.innerHeight;
+  const raw = inLandscape
+    ? (e.gamma || 0) - tiltBaseline.gamma   // landscape: gamma axis
+    : (e.beta  || 0) - tiltBaseline.beta;   // portrait:  beta axis
 
-  let tilt;
-  if (landscape) {
-    // In landscape the front-back nod maps to gamma (left-right in portrait terms)
-    // landscape-secondary flips the axis
-    const rawGamma = gamma - tiltBaseline.gamma;
-    tilt = (type === 'landscape-secondary') ? -rawGamma : rawGamma;
-  } else {
-    // Portrait: front-back nod maps to beta
-    tilt = beta - tiltBaseline.beta;
-  }
-
-  // Threshold: ±28° from calibrated baseline
-  if (tilt < -28 && (lastTilt === null || lastTilt >= -28)) {
+  // Edge-triggered: only fires once per crossing, resets when back to neutral
+  if (raw < -TILT_THRESHOLD && (lastTiltValue === null || lastTiltValue >= -TILT_THRESHOLD)) {
     markCorrect();
-  } else if (tilt > 28 && (lastTilt === null || lastTilt <= 28)) {
+  } else if (raw > TILT_THRESHOLD && (lastTiltValue === null || lastTiltValue <= TILT_THRESHOLD)) {
     markPass();
   }
 
-  lastTilt = tilt;
+  lastTiltValue = raw;
 }
 
 function disableTilt() {
-  window.removeEventListener('deviceorientation', calibrateThen);
-  window.removeEventListener('deviceorientation', handleTilt);
+  window.removeEventListener('deviceorientation', onCalibrate);
+  window.removeEventListener('deviceorientation', onTilt);
   calibrationBuffer = [];
   tiltBaseline = null;
-  lastTilt = null;
+  lastTiltValue = null;
+  tiltListening = false;
 }
 
-// ── Keyboard controls (desktop) ────────────────────────────────────────────
+// ── Keyboard (desktop) ─────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
   if (!gameActive) return;
   if (e.key === 'ArrowUp'   || e.key === 'ArrowRight') markCorrect();
@@ -344,23 +344,38 @@ document.addEventListener('touchstart', (e) => {
 document.addEventListener('touchend', (e) => {
   if (!gameActive) return;
   const dy = touchStartY - e.changedTouches[0].clientY;
-  if (Math.abs(dy) > 60) {
-    dy > 0 ? markCorrect() : markPass();
-  }
+  if (Math.abs(dy) > 60) dy > 0 ? markCorrect() : markPass();
 }, { passive: true });
 
-// ── End game ───────────────────────────────────────────────────────────────
+// ── Stop game (mid-game quit) ──────────────────────────────────────────────
+function stopGame() {
+  clearInterval(timerInterval);
+  clearInterval(countdownInterval);
+  disableTilt();
+  gameActive = false;
+  unlockOrientation();
+
+  // Mark current word as skipped
+  const word = deck[deckIndex] || '';
+  const last = results[results.length - 1];
+  if (word && (!last || last.word !== word)) {
+    results.push({ word, status: 'skipped' });
+  }
+
+  showResults();
+}
+
+// ── End game (timer reached 0) ─────────────────────────────────────────────
 function endGame() {
   gameActive = false;
   clearInterval(timerInterval);
   disableTilt();
   unlockOrientation();
 
-  // Mark current word as skipped if not yet acted on
-  const currentWord = deck[deckIndex] || '';
-  const lastResult = results[results.length - 1];
-  if (currentWord && (!lastResult || lastResult.word !== currentWord)) {
-    results.push({ word: currentWord, status: 'skipped' });
+  const word = deck[deckIndex] || '';
+  const last = results[results.length - 1];
+  if (word && (!last || last.word !== word)) {
+    results.push({ word, status: 'skipped' });
   }
 
   showResults();
@@ -370,11 +385,11 @@ function endGame() {
 function showResults() {
   showScreen('results');
   el.resultCorrect.textContent = correctCount;
-  el.resultPass.textContent = passCount;
+  el.resultPass.textContent    = passCount;
   el.resultCategory.textContent = `${currentCategory.emoji} ${currentCategory.name}`;
 
-  const emoji = correctCount >= 10 ? '🏆' : correctCount >= 5 ? '🎉' : '😅';
-  document.getElementById('results-emoji').textContent = emoji;
+  document.getElementById('results-emoji').textContent =
+    correctCount >= 10 ? '🏆' : correctCount >= 5 ? '🎉' : '😅';
   document.getElementById('results-title').textContent =
     correctCount >= 10 ? 'Incredible!' : correctCount >= 5 ? 'Great round!' : 'Nice try!';
 
@@ -382,7 +397,10 @@ function showResults() {
     <div class="result-item ${r.status}">
       <div class="result-dot"></div>
       <span class="result-word">${r.word}</span>
-      <span class="result-badge">${r.status === 'correct' ? '✓ Got it' : r.status === 'pass' ? '✗ Pass' : '— Skipped'}</span>
+      <span class="result-badge">${
+        r.status === 'correct' ? '✓ Got it' :
+        r.status === 'pass'    ? '✗ Pass'   : '— Skipped'
+      }</span>
     </div>
   `).join('');
 }
@@ -406,30 +424,28 @@ function goHome() {
 }
 
 // ── How to play modal ──────────────────────────────────────────────────────
-function showHowTo() { el.howToModal.classList.add('open'); }
+function showHowTo()  { el.howToModal.classList.add('open'); }
 function closeHowTo() { el.howToModal.classList.remove('open'); }
 
-el.howToModal.addEventListener('click', (e) => {
+el.howToModal.addEventListener('click', e => {
   if (e.target === el.howToModal) closeHowTo();
 });
 
-// ── iOS tilt permission button ─────────────────────────────────────────────
+// ── iOS tilt permission button (home screen) ───────────────────────────────
 function requestTiltPermission() {
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
       .then(state => {
-        if (state === 'granted') {
+        if (state === 'granted')
           document.getElementById('tilt-btn-wrap').style.display = 'none';
-        }
       }).catch(() => {});
   }
 }
 
 (function checkiOS() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS && typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
+  if (isIOS && typeof DeviceOrientationEvent?.requestPermission === 'function') {
     document.getElementById('tilt-btn-wrap').style.display = 'block';
   }
 })();
@@ -444,6 +460,6 @@ function shuffle(arr) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-el.timerProgress.style.strokeDasharray = CIRCUMFERENCE;
+el.timerProgress.style.strokeDasharray  = CIRCUMFERENCE;
 el.timerProgress.style.strokeDashoffset = 0;
 loadCategories();

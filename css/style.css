@@ -327,6 +327,31 @@ html, body {
 .btn-pass    { background: rgba(0,0,0,0.3); color: #ff6b6b; }
 .btn-correct { background: rgba(255,255,255,0.2); color: #fff; }
 
+/* Stop button */
+.btn-stop {
+  background: rgba(0,0,0,0.3);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: rgba(255,255,255,0.7);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-stop:hover  { background: rgba(233,69,96,0.5); color: #fff; }
+.btn-stop:active { transform: scale(0.9); }
+
+@media (orientation: landscape) {
+  .btn-stop { width: 30px; height: 30px; font-size: 0.85rem; }
+}
+
 /* Flash overlays */
 .flash-overlay {
   position: absolute;
