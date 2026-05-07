@@ -92,7 +92,15 @@ html, body {
 #home-screen {
   gap: 20px;
   overflow-y: auto;
+  justify-content: flex-start;
+  padding-top: 32px;
   padding-bottom: 40px;
+}
+
+/* Prevent flex children from shrinking — lets the screen actually overflow + scroll */
+#home-screen > *,
+#results-screen > * {
+  flex-shrink: 0;
 }
 
 .logo {
@@ -383,6 +391,8 @@ html, body {
 #results-screen {
   gap: 16px;
   overflow-y: auto;
+  justify-content: flex-start;
+  padding-top: 28px;
   padding-bottom: 40px;
 }
 
@@ -411,8 +421,7 @@ html, body {
   background: var(--surface);
   border-radius: var(--radius);
   overflow: hidden;
-  max-height: 40vh;
-  overflow-y: auto;
+  /* No max-height — outer screen scrolls, list shows fully */
 }
 
 .results-list-header {
@@ -503,15 +512,15 @@ html, body {
   #home-screen {
     flex-direction: row;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-start;
     gap: 12px;
     padding: 16px;
     overflow-y: auto;
   }
 
-  .logo    { font-size: 2rem; width: 100%; margin-bottom: -8px; }
-  .tagline { width: 100%; margin-top: -8px; }
+  .logo    { font-size: 2rem; width: 100%; margin-bottom: -8px; text-align: center; }
+  .tagline { width: 100%; margin-top: -8px; text-align: center; }
 
   .categories-grid {
     grid-template-columns: repeat(4, 1fr);
@@ -523,28 +532,16 @@ html, body {
   .category-card .emoji { font-size: 1.8rem; }
 
   #results-screen {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-    padding: 16px;
-    overflow-y: auto;
-    align-items: flex-start;
+    gap: 10px;
+    padding-top: 16px;
+    padding-bottom: 24px;
   }
 
-  .results-header { width: 100%; }
-  .results-scores { width: 100%; max-width: 400px; }
+  .results-emoji  { font-size: 2.4rem; }
+  .results-title  { font-size: 1.4rem; }
 
-  .results-list {
-    max-height: 35vh;
-    max-width: 440px;
-    width: 100%;
-  }
-
-  #results-screen .btn-primary,
-  #results-screen .btn-secondary {
-    max-width: 220px;
-  }
+  .result-stat { padding: 10px 20px; }
+  .result-stat .big-num { font-size: 2rem; }
 }
 
 /* ── How to play modal ── */
