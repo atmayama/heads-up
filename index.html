@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Heads Up!</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ── Home Screen ─────────────────────────────────────────── -->
+  <div id="home-screen" class="screen active">
+    <div class="logo">Heads Up!</div>
+    <p class="tagline">Pick a category and start guessing</p>
+
+    <div id="tilt-btn-wrap" style="display:none">
+      <button class="btn-secondary" style="max-width:280px" onclick="requestTiltPermission()">
+        📱 Enable Tilt Controls
+      </button>
+    </div>
+
+    <div id="categories-grid" class="categories-grid">
+      <div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 0">
+        Loading categories…
+      </div>
+    </div>
+
+    <button class="btn-secondary" onclick="showHowTo()">How to play</button>
+  </div>
+
+  <!-- ── Countdown Screen ────────────────────────────────────── -->
+  <div id="countdown-screen" class="screen">
+    <div id="countdown-cat" class="category-preview"></div>
+    <div id="countdown-num" class="countdown-number">3</div>
+    <div class="countdown-label">Get ready!</div>
+  </div>
+
+  <!-- ── Game Screen ─────────────────────────────────────────── -->
+  <div id="game-screen" class="screen">
+    <div id="game-bg" class="game-bg">
+
+      <div class="game-header">
+        <div class="score-display">
+          <div class="score-badge correct">✓ <span id="score-correct">0</span></div>
+          <div class="score-badge pass">✗ <span id="score-pass">0</span></div>
+        </div>
+
+        <div class="timer-wrap">
+          <svg class="timer-svg" viewBox="0 0 64 64">
+            <circle class="timer-track"    cx="32" cy="32" r="28" />
+            <circle id="timer-progress" class="timer-progress" cx="32" cy="32" r="28" />
+          </svg>
+          <div class="timer-text"><span id="timer-text">60</span></div>
+        </div>
+      </div>
+
+      <div class="tilt-hints">
+        <span>↙ Swipe down / tilt back = Pass</span>
+        <span>Swipe up / tilt forward = Got it ↗</span>
+      </div>
+
+      <div class="word-container">
+        <div id="current-word" class="current-word"></div>
+      </div>
+
+      <div class="game-footer">
+        <button class="btn-pass" onclick="markPass()">✗ Pass</button>
+        <button class="btn-correct" onclick="markCorrect()">✓ Got it!</button>
+      </div>
+
+      <!-- Flash overlays -->
+      <div id="correct-flash" class="flash-overlay correct-flash">
+        <div class="flash-icon">✓</div>
+        <div class="flash-label">Got it!</div>
+      </div>
+      <div id="pass-flash" class="flash-overlay pass-flash">
+        <div class="flash-icon">✗</div>
+        <div class="flash-label">Pass</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Results Screen ──────────────────────────────────────── -->
+  <div id="results-screen" class="screen">
+    <div class="results-header">
+      <div id="results-emoji" class="results-emoji">🎉</div>
+      <div id="results-title" class="results-title">Great round!</div>
+      <div id="result-category" style="color:var(--muted);margin-top:6px;font-size:0.95rem"></div>
+    </div>
+
+    <div class="results-scores">
+      <div class="result-stat">
+        <div id="result-correct" class="big-num correct">0</div>
+        <div class="stat-label">Got it</div>
+      </div>
+      <div class="result-stat">
+        <div id="result-pass" class="big-num pass">0</div>
+        <div class="stat-label">Passed</div>
+      </div>
+    </div>
+
+    <div class="results-list">
+      <div class="results-list-header">This round</div>
+      <div id="results-list"></div>
+    </div>
+
+    <button class="btn-primary" onclick="playAgain()">Play again</button>
+    <button class="btn-secondary" onclick="goHome()">Change category</button>
+  </div>
+
+  <!-- ── How to Play Modal ───────────────────────────────────── -->
+  <div id="how-to-modal" class="modal-backdrop">
+    <div class="modal">
+      <h2>How to play 🎮</h2>
+
+      <div class="how-to-step">
+        <div class="step-icon">1️⃣</div>
+        <div class="step-text">
+          <strong>Pick a category</strong>
+          <p>Choose from Animals, Movies, Celebrities, and more.</p>
+        </div>
+      </div>
+
+      <div class="how-to-step">
+        <div class="step-icon">📱</div>
+        <div class="step-text">
+          <strong>Hold the phone on your forehead</strong>
+          <p>Face the screen away from you. Your friends can see the word, you can't!</p>
+        </div>
+      </div>
+
+      <div class="how-to-step">
+        <div class="step-icon">🗣️</div>
+        <div class="step-text">
+          <strong>Friends give you clues</strong>
+          <p>They describe, act, or make sounds — anything to help you guess the word.</p>
+        </div>
+      </div>
+
+      <div class="how-to-step">
+        <div class="step-icon">✅</div>
+        <div class="step-text">
+          <strong>Tilt to answer</strong>
+          <p><strong>Tilt forward</strong> (or tap ✓) = Got it!<br>
+             <strong>Tilt back</strong> (or tap ✗) = Pass.<br>
+             On desktop: use ↑ / ↓ arrow keys.</p>
+        </div>
+      </div>
+
+      <div class="how-to-step">
+        <div class="step-icon">⏱️</div>
+        <div class="step-text">
+          <strong>Beat the clock</strong>
+          <p>Get as many correct as you can before 60 seconds runs out!</p>
+        </div>
+      </div>
+
+      <button class="btn-primary modal-close" onclick="closeHowTo()">Got it!</button>
+    </div>
+  </div>
+
+  <script src="js/js-yaml.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
