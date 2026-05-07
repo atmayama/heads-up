@@ -1,0 +1,108 @@
+name: Computer Science
+emoji: 💻
+color: "#00796B"
+words:
+  - Algorithm
+  - Data Structure
+  - Binary Search
+  - Sorting Algorithm
+  - Bubble Sort
+  - Merge Sort
+  - Quick Sort
+  - Heap Sort
+  - Linked List
+  - Binary Tree
+  - Binary Search Tree
+  - AVL Tree
+  - Red Black Tree
+  - Hash Table
+  - Graph
+  - Depth First Search
+  - Breadth First Search
+  - Dijkstra's Algorithm
+  - Dynamic Programming
+  - Recursion
+  - Stack
+  - Queue
+  - Deque
+  - Priority Queue
+  - Trie
+  - Object Oriented Programming
+  - Inheritance
+  - Polymorphism
+  - Encapsulation
+  - Abstraction
+  - Design Pattern
+  - Singleton
+  - Factory Pattern
+  - Observer Pattern
+  - MVC Architecture
+  - REST API
+  - GraphQL
+  - Microservices
+  - Docker
+  - Kubernetes
+  - CI/CD
+  - Git
+  - Version Control
+  - Merge Conflict
+  - Pull Request
+  - Agile
+  - Scrum
+  - Sprint
+  - SQL
+  - NoSQL
+  - MongoDB
+  - PostgreSQL
+  - Redis
+  - Database Indexing
+  - ACID Properties
+  - Normalization
+  - Machine Learning
+  - Deep Learning
+  - Neural Network
+  - Backpropagation
+  - Gradient Descent
+  - Overfitting
+  - Random Forest
+  - Support Vector Machine
+  - Natural Language Processing
+  - Computer Vision
+  - Large Language Model
+  - Transformer Architecture
+  - Convolutional Neural Network
+  - Recurrent Neural Network
+  - Generative Adversarial Network
+  - Reinforcement Learning
+  - Operating System
+  - Process Scheduling
+  - Deadlock
+  - Semaphore
+  - Virtual Memory
+  - Garbage Collection
+  - Compiler
+  - Interpreter
+  - Assembly Language
+  - TCP/IP
+  - HTTP
+  - DNS
+  - Load Balancer
+  - Firewall
+  - Encryption
+  - Public Key Infrastructure
+  - SSL Certificate
+  - Two Factor Authentication
+  - Buffer Overflow
+  - SQL Injection
+  - Cross Site Scripting
+  - Cloud Computing
+  - Serverless
+  - Edge Computing
+  - Blockchain
+  - Smart Contract
+  - Cryptocurrency
+  - Big O Notation
+  - Time Complexity
+  - Space Complexity
+  - Bit Manipulation
+  - Floating Point
