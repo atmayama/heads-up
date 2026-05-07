@@ -5,5 +5,10 @@
   "actions.yaml",
   "places.yaml",
   "food.yaml",
-  "science.yaml"
+  "science.yaml",
+  "bollywood.yaml",
+  "cricket.yaml",
+  "street_food.yaml",
+  "desi_pop.yaml",
+  "mythology.yaml"
 ]
