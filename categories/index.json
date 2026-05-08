@@ -20,5 +20,12 @@
   { "file": "kannada_songs.yaml",      "group": "🇮🇳 India" },
   { "file": "science_facts.yaml",      "group": "💻 Tech & Science" },
   { "file": "computer_science.yaml",   "group": "💻 Tech & Science" },
-  { "file": "apps_features.yaml",      "group": "💻 Tech & Science" }
+  { "file": "apps_features.yaml",      "group": "💻 Tech & Science" },
+  { "file": "friends.yaml",            "group": "📺 TV Series" },
+  { "file": "the_office.yaml",         "group": "📺 TV Series" },
+  { "file": "fresh_off_the_boat.yaml", "group": "📺 TV Series" },
+  { "file": "modern_family.yaml",      "group": "📺 TV Series" },
+  { "file": "harry_potter.yaml",       "group": "📺 TV Series" },
+  { "file": "suits.yaml",              "group": "📺 TV Series" },
+  { "file": "himym.yaml",              "group": "📺 TV Series" }
 ]
