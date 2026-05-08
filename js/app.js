@@ -2,7 +2,7 @@
 
 const TIMER_DURATION = 60;
 const CIRCUMFERENCE = 2 * Math.PI * 28;
-const TILT_THRESHOLD = 26; // degrees from calibrated baseline
+const TILT_THRESHOLD = 90; // degrees from calibrated baseline
 
 // ── State ──────────────────────────────────────────────────────────────────
 let categories = [];
