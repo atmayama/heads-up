@@ -77,11 +77,17 @@ window.addEventListener('orientationchange', () => setTimeout(updateRotateOverla
 // ── Load categories ────────────────────────────────────────────────────────
 async function loadCategories() {
   try {
-    const files = await fetch('categories/index.json').then(r => r.json());
-    categories = await Promise.all(files.map(async f => {
-      const text = await fetch(`categories/${f}`).then(r => r.text());
-      return jsyaml.load(text);
+    const entries = await fetch('categories/index.json').then(r => r.json());
+    const loaded = await Promise.all(entries.map(async entry => {
+      // Support both old format (plain string) and new format ({file, group})
+      const file  = typeof entry === 'string' ? entry : entry.file;
+      const group = typeof entry === 'string' ? 'All' : entry.group;
+      const text  = await fetch(`categories/${file}`).then(r => r.text());
+      const cat   = jsyaml.load(text);
+      cat._group  = group;
+      return cat;
     }));
+    categories = loaded;
     renderCategories();
   } catch (err) {
     console.error('Failed to load categories:', err);
@@ -91,13 +97,46 @@ async function loadCategories() {
 }
 
 function renderCategories() {
-  el.categoriesGrid.innerHTML = categories.map((cat, i) => `
-    <button class="category-card" style="background:${cat.color}" onclick="selectCategory(${i})">
-      <span class="emoji">${cat.emoji}</span>
-      <span class="cat-name">${cat.name}</span>
-      <span class="cat-count">${cat.words.length} cards</span>
-    </button>
-  `).join('');
+  // Group categories preserving insertion order
+  const groupMap = new Map();
+  categories.forEach((cat, i) => {
+    const g = cat._group || 'All';
+    if (!groupMap.has(g)) groupMap.set(g, []);
+    groupMap.get(g).push({ cat, i });
+  });
+
+  let firstGroup = true;
+  let html = '';
+  for (const [groupName, items] of groupMap) {
+    const open = firstGroup;
+    html += `
+      <div class="accordion ${open ? 'open' : ''}">
+        <button class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+          <span class="accordion-title">${groupName}</span>
+          <span class="accordion-count">${items.length}</span>
+          <span class="accordion-chevron">▾</span>
+        </button>
+        <div class="accordion-body">
+          <div class="categories-grid">
+            ${items.map(({ cat, i }) => `
+              <button class="category-card" style="background:${cat.color}"
+                      onclick="selectCategory(${i})">
+                <span class="emoji">${cat.emoji}</span>
+                <span class="cat-name">${cat.name}</span>
+                <span class="cat-count">${cat.words.length} cards</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+    firstGroup = false;
+  }
+  el.categoriesGrid.innerHTML = html;
+}
+
+function toggleAccordion(accordionEl) {
+  accordionEl.classList.toggle('open');
 }
 
 // ── Category selection ─────────────────────────────────────────────────────

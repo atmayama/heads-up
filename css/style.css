@@ -123,12 +123,84 @@ html, body {
   flex-shrink: 0;
 }
 
+/* ── Accordion list (home screen container) ── */
+.accordion-list {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accordion {
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.accordion-header {
+  width: 100%;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.accordion-header:active { opacity: 0.8; }
+
+.accordion-title {
+  font-size: 1rem;
+  font-weight: 800;
+  flex: 1;
+}
+
+.accordion-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+
+.accordion-chevron {
+  font-size: 1.1rem;
+  color: var(--muted);
+  transition: transform 0.25s ease;
+  display: inline-block;
+}
+
+.accordion.open .accordion-chevron {
+  transform: rotate(-180deg);
+}
+
+.accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.accordion.open .accordion-body {
+  grid-template-rows: 1fr;
+}
+
+.accordion-body > .categories-grid {
+  overflow: hidden;
+}
+
+/* ── Category grid (inside accordion body) ── */
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  max-width: 520px;
+  padding: 0 12px 14px;
 }
 
 .category-card {
@@ -547,10 +619,11 @@ html, body {
   .logo    { font-size: 2rem; width: 100%; margin-bottom: -8px; text-align: center; }
   .tagline { width: 100%; margin-top: -8px; text-align: center; }
 
+  .accordion-list { max-width: 680px; }
+
   .categories-grid {
     grid-template-columns: repeat(4, 1fr);
-    max-width: 680px;
-    gap: 10px;
+    gap: 8px;
   }
 
   .category-card { padding: 12px 10px; }
