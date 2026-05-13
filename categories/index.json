@@ -16,7 +16,7 @@
   { "file": "mythology.yaml",          "group": "🇮🇳 India" },
   { "file": "indian_celebrities.yaml", "group": "🇮🇳 India" },
   { "file": "places_india.yaml",       "group": "🇮🇳 India" },
-  { "file": "kannada_movies.yaml",     "group": "🇮🇳 India" },
+  { "file": "kannada_movies_2000s.yaml", "group": "🇮🇳 India" },
   { "file": "kannada_songs.yaml",      "group": "🇮🇳 India" },
   { "file": "science_facts.yaml",      "group": "💻 Tech & Science" },
   { "file": "computer_science.yaml",   "group": "💻 Tech & Science" },
